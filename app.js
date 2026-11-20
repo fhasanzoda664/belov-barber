@@ -203,9 +203,16 @@ const demo = (() => {
 async function call(action, payload) {
   if (DEMO) { await sleep(220); return clone(demo[action](payload || {})); }
   if (!inTG) throw new Error('Откройте приложение через Telegram');
-  const res = await fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, payload: payload || {}, initData: tg.initData }) });
-  const j = await res.json();
+  const ctl = window.AbortController ? new AbortController() : null;
+  const timer = setTimeout(() => ctl && ctl.abort(), 25000);
+  let j;
+  try {
+    const res = await fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload: payload || {}, initData: tg.initData }), signal: ctl ? ctl.signal : undefined });
+    j = await res.json();
+  } catch (e) {
+    throw new Error(e && e.name === 'AbortError' ? 'Сервер долго не отвечает, попробуйте ещё раз' : 'Нет связи с сервером, проверьте интернет');
+  } finally { clearTimeout(timer); }
   if (!j.ok) throw new Error(j.error || 'Ошибка сервера');
   return j.data;
 }
@@ -613,7 +620,13 @@ async function submit() {
   if (phone.replace(/\D/g, '').length < 9) { toast('Введите номер телефона', 'err'); haptic('error'); $('#f-phone') && $('#f-phone').focus(); return; }
   S.busy = true; renderBar();
   try {
-    if (inTG && tg.requestWriteAccess && tg.isVersionAtLeast('6.9')) await new Promise(r => tg.requestWriteAccess(() => r()));
+    // Просим разрешение писать клиенту (для напоминаний), но не ждём дольше 5 секунд
+    if (inTG && tg.requestWriteAccess && tg.isVersionAtLeast('6.9')) {
+      await Promise.race([
+        new Promise(r => { try { tg.requestWriteAccess(() => r()); } catch (e) { r(); } }),
+        sleep(5000)
+      ]);
+    }
     const b = await call('book', { serviceId: S.serviceId, extras: S.extras, date: S.date, time: S.time, name, phone, comment: S.comment.trim() });
     store.set('name', name); store.set('phone', phone);
     S.last = b; haptic('success');
