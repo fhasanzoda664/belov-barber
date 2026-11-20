@@ -1,7 +1,7 @@
 // Настройки приложения. Здесь нет секретов: этот файл будет виден всем.
 window.APP_CONFIG = {
   // Адрес Google Apps Script (появится позже). Пока пусто, приложение работает в ДЕМО-режиме.
-  API_URL: "",
+  API_URL: "https://script.google.com/macros/s/AKfycbyQnZv8NvfkZkmBscpqDMH7Myk8FmnZMga-i1Ynlou-6gwdNvQn7OBMET-I_ZnwHYIrbg/exec",
 
   currency: "смн",
   daysAhead: 14, // на сколько дней вперёд можно записаться
